@@ -135,6 +135,41 @@ func (s *Service) StartBridge() error {
 	return s.startBridgeWithAccount(acct)
 }
 
+// EnsureBridgeRunning 启动时调用：有激活账号且有 secret 则起桥；
+// 若激活账号无 secret，尝试第一个有 secret 的账号并激活。
+func (s *Service) EnsureBridgeRunning() error {
+	s.bridgeMu.Lock()
+	running := s.bridgeSrv != nil
+	s.bridgeMu.Unlock()
+	if running {
+		return nil
+	}
+
+	if acct, _ := account.GetActive(); acct != nil {
+		if account.HasSecret(acct.ID) {
+			return s.startBridgeWithAccount(acct)
+		}
+		logger.Error("active account %s has no secret file", acct.ID)
+	}
+
+	accounts, err := account.List()
+	if err != nil {
+		return err
+	}
+	for _, a := range accounts {
+		if !account.HasSecret(a.ID) {
+			continue
+		}
+		logger.Info("auto-activate account with secret: %s", a.Name)
+		if err := s.SetActiveAccount(a.ID); err != nil {
+			logger.Error("auto-activate failed: %v", err)
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("no account with usable secret; please OAuth/PAT login in web console")
+}
+
 func (s *Service) StopBridge() error {
 	s.bridgeMu.Lock()
 	defer s.bridgeMu.Unlock()

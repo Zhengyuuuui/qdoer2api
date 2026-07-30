@@ -45,10 +45,10 @@ func main() {
 		svc.bridgePort = *bridgePort
 	}
 
-	if acct, _ := account.GetActive(); acct != nil {
-		if err := svc.startBridgeWithAccount(acct); err != nil {
-			logger.Error("auto start bridge failed: %v", err)
-		}
+	// 启动时尽量自动拉起 Bridge：优先激活账号，否则尝试任意有 secret 的账号
+	if err := svc.EnsureBridgeRunning(); err != nil {
+		logger.Error("auto start bridge failed: %v", err)
+		logger.Info("open console and login/activate an account: http://127.0.0.1:%d", *webPort)
 	}
 
 	sub, err := fs.Sub(webAssets, "webconsole")
