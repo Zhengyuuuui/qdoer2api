@@ -77,6 +77,9 @@ func main() {
 		svc.bridgePort = *bridgePort
 	}
 
+	// cookie 按控制台端口隔离，避免 3588/3589 同 host 登录互踢
+	consoleWebPort = *webPort
+
 	// 控制台密码：环境变量 > settings；都没有则自动生成并落盘
 	_ = ensureConsolePassword()
 

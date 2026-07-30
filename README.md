@@ -111,7 +111,8 @@ http://<服务器IP>:3588
 3. 授权成功后账号会写入本地，并自动 **激活**
 4. 激活后 **Bridge 自动监听 8963**
 
-> 说明：控制台密码只保护 **3588 管理页**；Bridge（8963）仍用独立的 API Key（默认 `qccg`），与 NewAPI 对接不受影响。
+> 说明：控制台密码只保护 **管理页**；Bridge 仍用独立 API Key（默认 `qccg`），与 NewAPI 对接不受影响。  
+> CN / Global 双开时，会话 cookie 按端口隔离（`qoder2api_session_3588` / `qoder2api_session_3589`），同一浏览器可同时登录两端。
 
 ### 4. 启动 / 确认 Bridge
 

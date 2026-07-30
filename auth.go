@@ -17,9 +17,25 @@ import (
 )
 
 const (
-	sessionCookieName = "qoder2api_session"
+	sessionCookieBase = "qoder2api_session"
 	sessionTTL        = 24 * time.Hour
 )
+
+// consoleWebPort 由 main 启动时写入，用于区分同 host 不同端口的 cookie
+// （浏览器 cookie 不区分端口，CN 3588 与 Global 3589 必须用不同 cookie 名）
+var consoleWebPort int
+
+func sessionCookieName() string {
+	if consoleWebPort > 0 {
+		return fmt.Sprintf("%s_%d", sessionCookieBase, consoleWebPort)
+	}
+	return sessionCookieBase
+}
+
+// legacy cookie 名（升级前），读取时兼容并在登录时写新名
+func legacySessionCookieName() string {
+	return sessionCookieBase
+}
 
 type sessionStore struct {
 	mu   sync.Mutex
@@ -115,8 +131,11 @@ func passwordOK(input string) bool {
 }
 
 func sessionTokenFromRequest(r *http.Request) string {
-	if c, err := r.Cookie(sessionCookieName); err == nil && c != nil {
-		return c.Value
+	// 优先读带端口的 cookie，再兼容旧名
+	for _, name := range []string{sessionCookieName(), legacySessionCookieName()} {
+		if c, err := r.Cookie(name); err == nil && c != nil && c.Value != "" {
+			return c.Value
+		}
 	}
 	// also allow Authorization: Bearer <session> for API tools
 	auth := r.Header.Get("Authorization")
@@ -128,7 +147,7 @@ func sessionTokenFromRequest(r *http.Request) string {
 
 func setSessionCookie(w http.ResponseWriter, tok string, exp time.Time) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     sessionCookieName(),
 		Value:    tok,
 		Path:     "/",
 		Expires:  exp,
@@ -137,17 +156,30 @@ func setSessionCookie(w http.ResponseWriter, tok string, exp time.Time) {
 		SameSite: http.SameSiteLaxMode,
 		// Secure: only enable behind HTTPS; leave false for local/http deploy
 	})
+	// 清掉旧通用 cookie，避免同 host 另一端口被覆盖后误用
+	if sessionCookieName() != legacySessionCookieName() {
+		http.SetCookie(w, &http.Cookie{
+			Name:     legacySessionCookieName(),
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
 }
 
 func clearSessionCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	})
+	for _, name := range []string{sessionCookieName(), legacySessionCookieName()} {
+		http.SetCookie(w, &http.Cookie{
+			Name:     name,
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
 }
 
 func isPublicPath(path string) bool {
