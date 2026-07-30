@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>qoder2api Console</title>
+  <style>
+    :root {
+      --bg: #f6f5f2;
+      --card: #fff;
+      --text: #1f1f1f;
+      --muted: #6b6b6b;
+      --line: #e8e6e1;
+      --ok: #1a7f37;
+      --bad: #cf222e;
+      --accent: #2563eb;
+      --warn: #9a6700;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    h1 { margin: 0; font-size: 20px; }
+    h3 { margin: 0 0 12px; font-size: 16px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      background: #fafafa;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--bad);
+    }
+    .dot.on { background: var(--ok); }
+    button, input, select {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 8px 12px;
+      background: #fff;
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--line);
+    }
+    button.danger {
+      background: #fff;
+      color: var(--bad);
+      border-color: #f0c2c6;
+    }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      max-height: 280px;
+      overflow: auto;
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 860px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input, select { width: 100%; }
+    .msg { font-size: 13px; color: var(--muted); min-height: 18px; }
+    .msg.err { color: var(--bad); }
+    .msg.ok { color: var(--ok); }
+    .quota {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--muted);
+      min-width: 160px;
+    }
+    .quota strong { color: var(--text); font-weight: 600; }
+    .bar {
+      height: 6px;
+      background: #eee;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 4px;
+      width: 140px;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+    }
+    .bar.warn > i { background: var(--warn); }
+    .bar.bad > i { background: var(--bad); }
+    .oauth-box {
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fafafa;
+      margin-top: 12px;
+    }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>qoder2api</h1>
+      <div class="muted">轻量 Bridge + Web · Console :3588 · Bridge :8963</div>
+    </div>
+    <div class="row">
+      <span class="pill"><span id="statusDot" class="dot"></span><span id="statusText">checking</span></span>
+      <button class="secondary" id="refreshBtn">刷新</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h3>状态</h3>
+      <div class="row" id="statusMeta"></div>
+    </section>
+
+    <section class="card">
+      <h3>NewAPI / 中转站接入</h3>
+      <div class="muted" style="margin-bottom:12px">
+        把下面地址和密钥填到 NewAPI 渠道（OpenAI 兼容）。本地默认只监听 127.0.0.1。
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>OpenAI Base URL（推荐）</label>
+          <div class="row">
+            <input id="openaiBaseUrl" readonly />
+            <button class="secondary" type="button" data-copy="openaiBaseUrl">复制</button>
+          </div>
+        </div>
+        <div>
+          <label>Root Base URL（Claude 等）</label>
+          <div class="row">
+            <input id="rootBaseUrl" readonly />
+            <button class="secondary" type="button" data-copy="rootBaseUrl">复制</button>
+          </div>
+        </div>
+        <div>
+          <label>API Key / 密钥（可修改）</label>
+          <div class="row">
+            <input id="bridgeTokenInput" placeholder="qccg" />
+            <button class="secondary" type="button" data-copy="bridgeTokenInput">复制</button>
+          </div>
+        </div>
+        <div>
+          <label>Bridge 端口（可修改）</label>
+          <input id="bridgePortInput" type="number" min="1" max="65535" placeholder="8963" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="saveConnBtn">保存密钥/端口</button>
+        <button class="secondary" id="copyNewapiBtn">复制 NewAPI 配置 JSON</button>
+        <span class="msg" id="connMsg"></span>
+      </div>
+      <pre id="newapiBox" style="margin-top:12px"></pre>
+    </section>
+
+    <section class="card">
+      <h3>添加账号</h3>
+      <div class="grid-2">
+        <div>
+          <label>Region</label>
+          <select id="regionInput">
+            <option value="global">global</option>
+            <option value="cn">cn</option>
+          </select>
+        </div>
+        <div>
+          <label>PAT（可选，与 OAuth 二选一）</label>
+          <input id="patInput" placeholder="粘贴 Qoder PAT" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="oauthBtn">OAuth 登录</button>
+        <button class="secondary" id="addBtn">用 PAT 添加</button>
+        <button class="secondary" id="cancelOauthBtn" disabled>取消 OAuth</button>
+        <span class="msg" id="addMsg"></span>
+      </div>
+      <div class="oauth-box" id="oauthBox" style="display:none">
+        <div class="muted">请在浏览器完成授权，完成后会自动保存账号 JSON 与 token。</div>
+        <div style="margin-top:8px">
+          登录链接：
+          <a id="oauthLink" href="#" target="_blank" rel="noopener">打开登录页</a>
+        </div>
+        <div class="msg" id="oauthMsg" style="margin-top:8px">等待授权中...</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>账号列表 / 额度</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>账号</th>
+            <th>Plan / 模式</th>
+            <th>额度</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="accountBody">
+          <tr><td colspan="4" class="muted">加载中...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card grid-2">
+      <div>
+        <h3>模型</h3>
+        <pre id="modelsBox">加载中...</pre>
+      </div>
+      <div>
+        <h3>最近日志</h3>
+        <pre id="logsBox">加载中...</pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let currentLoginID = '';
+    let oauthAbort = false;
+    const quotaCache = {};
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options,
+      });
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+      if (!res.ok) {
+        const msg = (data && data.error) || text || res.statusText;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function setStatus(running, extra = {}) {
+      $('statusDot').classList.toggle('on', !!running);
+      $('statusText').textContent = running ? 'Bridge running' : 'Bridge stopped';
+      $('statusMeta').innerHTML = `
+        <span class="pill">Bridge: ${running ? 'ON' : 'OFF'}</span>
+        <span class="pill">Port: ${extra.port || 8963}</span>
+        <span class="pill">Active: ${extra.active_account || '-'}</span>
+        <span class="pill">API: ${extra.api_mode || '-'}</span>
+      `;
+    }
+
+    function fillConnection(conn = {}, settings = {}) {
+      const port = conn.port || settings.port || 8963;
+      const key = conn.api_key || settings.bridge_token || 'qccg';
+      const root = conn.base_url || `http://127.0.0.1:${port}`;
+      const openai = conn.openai_base_url || `${root}/v1`;
+      $('rootBaseUrl').value = root;
+      $('openaiBaseUrl').value = openai;
+      if (document.activeElement !== $('bridgeTokenInput')) {
+        $('bridgeTokenInput').value = key;
+      }
+      if (document.activeElement !== $('bridgePortInput')) {
+        $('bridgePortInput').value = port;
+      }
+      const cfg = {
+        name: 'QCCG / Qoder',
+        type: 'openai',
+        base_url: openai,
+        api_key: key,
+        models: ['auto', 'ultimate', 'qmodel_latest', 'kmodel_latest', 'dmodel', 'gm51model'],
+      };
+      $('newapiBox').textContent = JSON.stringify(cfg, null, 2);
+    }
+
+    async function loadConnection() {
+      try {
+        const data = await api('/api/settings');
+        fillConnection(data.connection || {}, data.settings || {});
+      } catch (e) {
+        fillConnection({}, {});
+        $('connMsg').className = 'msg err';
+        $('connMsg').textContent = e.message;
+      }
+    }
+
+    function fmtNum(n) {
+      if (n == null || Number.isNaN(n)) return '-';
+      return Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function renderQuota(q) {
+      if (!q) return '<div class="quota muted">加载中...</div>';
+      if (q.error) return `<div class="quota msg err">${q.error}</div>`;
+      const bucket = q.user_quota || q.org_resource_package;
+      if (!bucket) {
+        return `<div class="quota"><strong>${q.plan || '-'}</strong><br/>无额度数据</div>`;
+      }
+      const used = bucket.used || 0;
+      const total = bucket.total || 0;
+      const remaining = bucket.remaining != null ? bucket.remaining : (total - used);
+      const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+      const cls = pct >= 90 ? 'bad' : (pct >= 70 ? 'warn' : '');
+      return `
+        <div class="quota">
+          <strong>${q.plan || '-'}</strong>
+          ${q.is_quota_exceeded ? ' <span class="pill">超额</span>' : ''}
+          <br/>已用 ${fmtNum(used)} / ${fmtNum(total)} · 剩余 ${fmtNum(remaining)}
+          <div class="bar ${cls}"><i style="width:${pct}%"></i></div>
+          ${bucket.reset_time ? `<div>重置: ${bucket.reset_time}</div>` : ''}
+        </div>
+      `;
+    }
+
+    function renderAccounts(list) {
+      if (!list || !list.length) {
+        $('accountBody').innerHTML = '<tr><td colspan="4" class="muted">暂无账号</td></tr>';
+        return;
+      }
+      $('accountBody').innerHTML = list.map(a => `
+        <tr data-id="${a.id}">
+          <td>
+            <div><strong>${a.name || a.id}</strong> ${a.active ? '<span class="pill">active</span>' : ''}</div>
+            <div class="muted">${a.email || '-'}</div>
+          </td>
+          <td>
+            <div>${a.plan || '-'}</div>
+            <div class="muted">${a.auth_mode || '-'} / ${a.api_mode || '-'} / ${a.region || 'global'}</div>
+          </td>
+          <td class="quota-cell" data-quota-id="${a.id}">${renderQuota(quotaCache[a.id])}</td>
+          <td class="row">
+            <button class="secondary" data-act="activate" data-id="${a.id}" ${a.active ? 'disabled' : ''}>激活</button>
+            <button class="secondary" data-act="quota" data-id="${a.id}">刷新额度</button>
+            <button class="danger" data-act="delete" data-id="${a.id}">删除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadQuota(id) {
+      try {
+        const q = await api('/api/accounts/quota?id=' + encodeURIComponent(id));
+        quotaCache[id] = q;
+      } catch (e) {
+        quotaCache[id] = { error: e.message };
+      }
+      const cell = document.querySelector(`[data-quota-id="${CSS.escape(id)}"]`);
+      if (cell) cell.innerHTML = renderQuota(quotaCache[id]);
+    }
+
+    async function refresh() {
+      try {
+        const status = await api('/api/status');
+        setStatus(!!status.running, status);
+      } catch (e) {
+        setStatus(false, {});
+      }
+
+      await loadConnection();
+
+      try {
+        const accounts = await api('/api/accounts');
+        renderAccounts(accounts);
+        // 并行拉额度
+        (accounts || []).forEach(a => loadQuota(a.id));
+      } catch (e) {
+        $('accountBody').innerHTML = `<tr><td colspan="4" class="msg err">${e.message}</td></tr>`;
+      }
+
+      try {
+        const models = await api('/api/models');
+        $('modelsBox').textContent = JSON.stringify(models, null, 2);
+      } catch (e) {
+        $('modelsBox').textContent = e.message;
+      }
+
+      try {
+        const logs = await api('/api/logs');
+        const lines = (logs || []).slice(-40).map(x => `[${x.level}] ${x.message}`).join('\\n');
+        $('logsBox').textContent = lines || '(empty)';
+      } catch (e) {
+        $('logsBox').textContent = e.message;
+      }
+    }
+
+    $('refreshBtn').onclick = refresh;
+
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.getAttribute('data-copy');
+        const el = $(id);
+        const val = el ? el.value : '';
+        try {
+          await navigator.clipboard.writeText(val);
+          $('connMsg').className = 'msg ok';
+          $('connMsg').textContent = '已复制';
+        } catch {
+          el.select();
+          document.execCommand('copy');
+          $('connMsg').className = 'msg ok';
+          $('connMsg').textContent = '已复制';
+        }
+      };
+    });
+
+    $('copyNewapiBtn').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText($('newapiBox').textContent);
+        $('connMsg').className = 'msg ok';
+        $('connMsg').textContent = 'NewAPI 配置已复制';
+      } catch (e) {
+        $('connMsg').className = 'msg err';
+        $('connMsg').textContent = e.message;
+      }
+    };
+
+    $('saveConnBtn').onclick = async () => {
+      const port = Number($('bridgePortInput').value || 8963);
+      const bridge_token = ($('bridgeTokenInput').value || '').trim() || 'qccg';
+      $('connMsg').className = 'msg';
+      $('connMsg').textContent = '保存中...';
+      try {
+        const res = await api('/api/settings/save', {
+          method: 'POST',
+          body: JSON.stringify({ port, bridge_token }),
+        });
+        fillConnection(res.connection || {}, res.settings || {});
+        $('connMsg').className = 'msg ok';
+        $('connMsg').textContent = res.note || '已保存';
+        await refresh();
+      } catch (e) {
+        $('connMsg').className = 'msg err';
+        $('connMsg').textContent = e.message;
+      }
+    };
+
+    $('addBtn').onclick = async () => {
+      const pat = $('patInput').value.trim();
+      const region = $('regionInput').value;
+      $('addMsg').className = 'msg';
+      $('addMsg').textContent = '提交中...';
+      try {
+        await api('/api/accounts/add', {
+          method: 'POST',
+          body: JSON.stringify({ pat, region }),
+        });
+        $('addMsg').className = 'msg ok';
+        $('addMsg').textContent = 'PAT 添加成功';
+        $('patInput').value = '';
+        await refresh();
+      } catch (e) {
+        $('addMsg').className = 'msg err';
+        $('addMsg').textContent = e.message;
+      }
+    };
+
+    $('oauthBtn').onclick = async () => {
+      const region = $('regionInput').value;
+      oauthAbort = false;
+      $('addMsg').className = 'msg';
+      $('addMsg').textContent = '启动 OAuth...';
+      try {
+        const session = await api('/api/oauth/start', {
+          method: 'POST',
+          body: JSON.stringify({ region }),
+        });
+        currentLoginID = session.login_id;
+        $('oauthBox').style.display = 'block';
+        $('oauthLink').href = session.login_url;
+        $('oauthLink').textContent = session.login_url;
+        $('oauthMsg').className = 'msg';
+        $('oauthMsg').textContent = '已打开登录页，等待授权...';
+        $('cancelOauthBtn').disabled = false;
+        window.open(session.login_url, '_blank', 'noopener');
+
+        // 后端同步等待；前端也阻塞在这个请求上
+        const acct = await api('/api/oauth/wait', {
+          method: 'POST',
+          body: JSON.stringify({ login_id: currentLoginID, active: true }),
+        });
+        if (oauthAbort) return;
+        $('oauthMsg').className = 'msg ok';
+        $('oauthMsg').textContent = `登录成功：${acct.name || acct.email || acct.id}`;
+        $('addMsg').className = 'msg ok';
+        $('addMsg').textContent = 'OAuth 账号已保存';
+        $('cancelOauthBtn').disabled = true;
+        currentLoginID = '';
+        await refresh();
+      } catch (e) {
+        if (oauthAbort) {
+          $('oauthMsg').className = 'msg';
+          $('oauthMsg').textContent = '已取消';
+          $('addMsg').textContent = '';
+        } else {
+          $('oauthMsg').className = 'msg err';
+          $('oauthMsg').textContent = e.message;
+          $('addMsg').className = 'msg err';
+          $('addMsg').textContent = e.message;
+        }
+        $('cancelOauthBtn').disabled = true;
+      }
+    };
+
+    $('cancelOauthBtn').onclick = async () => {
+      oauthAbort = true;
+      if (!currentLoginID) return;
+      try {
+        await api('/api/oauth/cancel', {
+          method: 'POST',
+          body: JSON.stringify({ login_id: currentLoginID }),
+        });
+      } catch (_) {}
+      $('cancelOauthBtn').disabled = true;
+      $('oauthMsg').className = 'msg';
+      $('oauthMsg').textContent = '已取消';
+      currentLoginID = '';
+    };
+
+    $('accountBody').onclick = async (ev) => {
+      const btn = ev.target.closest('button[data-act]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      try {
+        if (act === 'activate') {
+          await api('/api/active', { method: 'POST', body: JSON.stringify({ id }) });
+          await refresh();
+        } else if (act === 'quota') {
+          const cell = document.querySelector(`[data-quota-id="${CSS.escape(id)}"]`);
+          if (cell) cell.innerHTML = '<div class="quota muted">刷新中...</div>';
+          await loadQuota(id);
+        } else if (act === 'delete') {
+          if (!confirm('确认删除该账号？')) return;
+          await api('/api/accounts/delete', { method: 'POST', body: JSON.stringify({ id }) });
+          delete quotaCache[id];
+          await refresh();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    refresh();
+    setInterval(refresh, 20000);
+  </script>
+</body>
+</html>

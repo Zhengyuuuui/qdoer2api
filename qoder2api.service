@@ -1,0 +1,15 @@
+[Unit]
+Description=qoder2api lightweight bridge + web console
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/qoder2api
+ExecStart=/opt/qoder2api/qoder2api --bind=0.0.0.0 --web-port=3588 --bridge-port=8963
+Restart=always
+RestartSec=3
+Environment=HOME=/root
+
+[Install]
+WantedBy=multi-user.target
