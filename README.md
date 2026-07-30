@@ -65,12 +65,23 @@ qoder2api console: http://0.0.0.0:3588
 bridge target port: 8963
 ```
 
-### 3. 打开网页控制台
+### 3. 打开网页控制台（需登录）
 
 浏览器访问：
 
 ```text
 http://127.0.0.1:3588
+```
+
+会跳转到 `/login.html`。控制台密码来源（优先级从高到低）：
+
+1. 环境变量 `QODER2API_CONSOLE_PASSWORD`
+2. `~/.qoder2api/settings.json` 里的 `console_password`
+3. 若都没有，**首次启动自动生成**并写入 settings，日志会打印一次
+
+```bash
+export QODER2API_CONSOLE_PASSWORD='你的强密码'
+./qoder2api --web-port=3588 --bridge-port=8963
 ```
 
 服务器部署时替换为：
@@ -79,12 +90,14 @@ http://127.0.0.1:3588
 http://<服务器IP>:3588
 ```
 
-在控制台中：
+登录后在控制台中：
 
 1. 选择 Region（`global` / `cn`）
 2. 点击 **OAuth 登录**（或填写 PAT 添加）
 3. 授权成功后账号会写入本地，并自动 **激活**
 4. 激活后 **Bridge 自动监听 8963**
+
+> 说明：控制台密码只保护 **3588 管理页**；Bridge（8963）仍用独立的 API Key（默认 `qccg`），与 NewAPI 对接不受影响。
 
 ### 4. 启动 / 确认 Bridge
 

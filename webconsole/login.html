@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>qoder2api 登录</title>
+  <style>
+    :root {
+      --bg: #f6f5f2;
+      --card: #fff;
+      --text: #1f1f1f;
+      --muted: #6b6b6b;
+      --line: #e8e6e1;
+      --accent: #2563eb;
+      --bad: #cf222e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #eef2ff, var(--bg) 55%);
+      color: var(--text);
+    }
+    .card {
+      width: min(420px, 92vw);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.06);
+    }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    .muted { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input {
+      width: 100%;
+      font: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    button {
+      width: 100%;
+      font: inherit;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .msg { min-height: 18px; font-size: 13px; margin-top: 12px; color: var(--muted); }
+    .msg.err { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>qoder2api</h1>
+    <div class="muted">控制台需要密码鉴权（类似 CLIProxyAPI Management Key）。Bridge API 仍使用独立 API Key。</div>
+    <form id="form">
+      <label for="password">控制台密码</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Console Password" required />
+      <button id="btn" type="submit">登录</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+  <script>
+    // 已登录则跳转首页
+    fetch('/api/auth/me').then(r => { if (r.ok) location.replace('/'); }).catch(() => {});
+
+    const form = document.getElementById('form');
+    const msg = document.getElementById('msg');
+    const btn = document.getElementById('btn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className = 'msg';
+      msg.textContent = '登录中...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: document.getElementById('password').value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '登录失败');
+        location.replace('/');
+      } catch (err) {
+        msg.className = 'msg err';
+        msg.textContent = err.message || String(err);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

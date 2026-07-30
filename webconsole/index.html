@@ -163,6 +163,7 @@
     <div class="row">
       <span class="pill"><span id="statusDot" class="dot"></span><span id="statusText">checking</span></span>
       <button class="secondary" id="refreshBtn">刷新</button>
+      <button class="secondary" id="logoutBtn">退出登录</button>
     </div>
   </header>
 
@@ -203,9 +204,13 @@
           <label>Bridge 端口（可修改）</label>
           <input id="bridgePortInput" type="number" min="1" max="65535" placeholder="8963" />
         </div>
+        <div>
+          <label>控制台登录密码（可修改，留空不改）</label>
+          <input id="consolePasswordInput" type="password" placeholder="不修改请留空" autocomplete="new-password" />
+        </div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button id="saveConnBtn">保存密钥/端口</button>
+        <button id="saveConnBtn">保存密钥/端口/密码</button>
         <button class="secondary" id="copyNewapiBtn">复制 NewAPI 配置 JSON</button>
         <span class="msg" id="connMsg"></span>
       </div>
@@ -437,7 +442,18 @@
       }
     }
 
+    // 未登录则跳登录页
+    fetch('/api/auth/me').then(r => {
+      if (!r.ok) location.replace('/login.html');
+    }).catch(() => location.replace('/login.html'));
+
     $('refreshBtn').onclick = refresh;
+    $('logoutBtn').onclick = async () => {
+      try {
+        await api('/api/auth/logout', { method: 'POST', body: '{}' });
+      } catch (_) {}
+      location.replace('/login.html');
+    };
 
     document.querySelectorAll('[data-copy]').forEach(btn => {
       btn.onclick = async () => {
@@ -471,14 +487,18 @@
     $('saveConnBtn').onclick = async () => {
       const port = Number($('bridgePortInput').value || 8963);
       const bridge_token = ($('bridgeTokenInput').value || '').trim() || 'qccg';
+      const console_password = ($('consolePasswordInput').value || '').trim();
       $('connMsg').className = 'msg';
       $('connMsg').textContent = '保存中...';
       try {
+        const body = { port, bridge_token };
+        if (console_password) body.console_password = console_password;
         const res = await api('/api/settings/save', {
           method: 'POST',
-          body: JSON.stringify({ port, bridge_token }),
+          body: JSON.stringify(body),
         });
         fillConnection(res.connection || {}, res.settings || {});
+        $('consolePasswordInput').value = '';
         $('connMsg').className = 'msg ok';
         $('connMsg').textContent = res.note || '已保存';
         await refresh();

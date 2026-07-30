@@ -45,6 +45,9 @@ func main() {
 		svc.bridgePort = *bridgePort
 	}
 
+	// 控制台密码：环境变量 > settings；都没有则自动生成并落盘
+	_ = ensureConsolePassword()
+
 	// 启动时尽量自动拉起 Bridge：优先激活账号，否则尝试任意有 secret 的账号
 	if err := svc.EnsureBridgeRunning(); err != nil {
 		logger.Error("auto start bridge failed: %v", err)
@@ -57,6 +60,11 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	// auth (public)
+	mux.HandleFunc("/api/auth/login", handleAuthLogin)
+	mux.HandleFunc("/api/auth/logout", handleAuthLogout)
+	mux.HandleFunc("/api/auth/me", handleAuthMe)
+
 	mux.HandleFunc("/api/status", handleStatus)
 	mux.HandleFunc("/api/accounts", handleAccounts)
 	mux.HandleFunc("/api/accounts/add", handleAddAccount)
@@ -78,14 +86,14 @@ func main() {
 	addr := fmt.Sprintf("%s:%d", *bind, *webPort)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      withCORS(mux),
+		Handler:      withCORS(requireConsoleAuth(mux)),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 10 * time.Minute, // oauth wait may block
 		IdleTimeout:  60 * time.Second,
 	}
 
-	logger.Info("qoder2api console: http://%s", addr)
-	logger.Info("bridge target port: %d", svc.bridgePort)
+	logger.Info("qoder2api console: http://%s (password protected)", addr)
+	logger.Info("bridge target port: %d (API key separate from console password)", svc.bridgePort)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
@@ -330,9 +338,13 @@ func handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	if out.Port == 0 {
 		out.Port = 8963
 	}
+	// 不回传明文控制台密码，只标记是否已设置
+	hasConsolePwd := strings.TrimSpace(out.ConsolePassword) != "" || strings.TrimSpace(os.Getenv("QODER2API_CONSOLE_PASSWORD")) != ""
+	out.ConsolePassword = ""
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"settings":   out,
-		"connection": connectionInfo(),
+		"settings":              out,
+		"connection":            connectionInfo(),
+		"console_password_set":  hasConsolePwd,
 	})
 }
 
@@ -342,10 +354,11 @@ func handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Port        *int    `json:"port"`
-		BridgeToken *string `json:"bridge_token"`
-		LogLevel    *string `json:"log_level"`
-		AutoStart   *bool   `json:"auto_start"`
+		Port            *int    `json:"port"`
+		BridgeToken     *string `json:"bridge_token"`
+		LogLevel        *string `json:"log_level"`
+		AutoStart       *bool   `json:"auto_start"`
+		ConsolePassword *string `json:"console_password"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -376,15 +389,23 @@ func handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if req.AutoStart != nil {
 		cur.AutoStart = *req.AutoStart
 	}
+	if req.ConsolePassword != nil {
+		p := strings.TrimSpace(*req.ConsolePassword)
+		if p != "" {
+			cur.ConsolePassword = p
+		}
+	}
 	if err := svc.SaveSettings(cur); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	safe := *cur
+	safe.ConsolePassword = ""
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"ok":         true,
 		"connection": connectionInfo(),
-		"settings":   cur,
-		"note":       "密钥已保存；端口变更需重启 Bridge 后生效",
+		"settings":   safe,
+		"note":       "已保存；控制台密码立即生效，Bridge 端口变更需重启 Bridge",
 	})
 }
 
