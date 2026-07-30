@@ -21,10 +21,20 @@
 
 ## 端口
 
-| 服务 | 默认地址 | 说明 |
-|------|----------|------|
-| **Web 控制台** | `http://127.0.0.1:3588` | 账号登录、额度、密钥配置 |
-| **Bridge API** | `http://127.0.0.1:8963` | OpenAI / Claude / Codex 兼容接口 |
+| 实例 | Web 控制台 | Bridge API | 数据目录 | Region |
+|------|------------|------------|----------|--------|
+| **CN 国内**（默认） | `3588` | `8963` | `~/.qoder2api` 或 `~/.qoder2api-cn` | 控制台选 `cn` |
+| **Global 国际** | `3589` | `8964` | `~/.qoder2api-global` | 控制台选 `global` |
+
+单实例默认仍是 `3588` + `8963`。双开请用 `--instance`：
+
+```bash
+# 国内
+./qoder2api --instance=cn
+
+# 国际
+./qoder2api --instance=global
+```
 
 ## 快速开始
 
@@ -56,7 +66,11 @@ GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o qoder2api .
 |------|------|------|
 | `--web-port` | `3588` | Web 控制台端口 |
 | `--bridge-port` | `8963` | Bridge API 端口 |
-| `--bind` | `0.0.0.0` | 控制台监听地址（服务器可公网访问控制台） |
+| `--bind` | `0.0.0.0` | 控制台监听地址 |
+| `--data-dir` | `~/.qoder2api` | 数据根目录（账号/密钥隔离） |
+| `--instance` | 空 | `cn`→3588/8963；`global`→3589/8964，并分数据目录 |
+| 环境变量 `QODER2API_HOME` | — | 等同 `--data-dir` |
+| 环境变量 `QODER2API_CONSOLE_PASSWORD` | — | 控制台登录密码 |
 
 启动成功后日志类似：
 

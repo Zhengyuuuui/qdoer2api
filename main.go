@@ -30,14 +30,46 @@ func main() {
 	webPort := flag.Int("web-port", 3588, "web console port")
 	bridgePort := flag.Int("bridge-port", 8963, "bridge api port")
 	bind := flag.String("bind", "0.0.0.0", "console bind address")
+	dataDir := flag.String("data-dir", "", "data root (default: $QODER2API_HOME or ~/.qoder2api)")
+	instance := flag.String("instance", "", "preset: cn (3588/8963) or global (3589/8964); sets ports if not overridden")
 	flag.Parse()
 
-	if home, err := os.UserHomeDir(); err == nil {
-		logDir := filepath.Join(home, ".qoder2api", "logs")
-		if err := logger.InitFile(logDir); err != nil {
-			fmt.Fprintf(os.Stderr, "[logger] init failed: %v\n", err)
+	// 实例预设：方便 CN / Global 双开
+	switch strings.ToLower(strings.TrimSpace(*instance)) {
+	case "cn", "china":
+		if !isFlagPassed("web-port") {
+			*webPort = 3588
+		}
+		if !isFlagPassed("bridge-port") {
+			*bridgePort = 8963
+		}
+		if *dataDir == "" && os.Getenv("QODER2API_HOME") == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				*dataDir = filepath.Join(home, ".qoder2api-cn")
+			}
+		}
+	case "global", "intl", "international":
+		if !isFlagPassed("web-port") {
+			*webPort = 3589
+		}
+		if !isFlagPassed("bridge-port") {
+			*bridgePort = 8964
+		}
+		if *dataDir == "" && os.Getenv("QODER2API_HOME") == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				*dataDir = filepath.Join(home, ".qoder2api-global")
+			}
 		}
 	}
+
+	if *dataDir != "" {
+		account.SetDataRoot(*dataDir)
+	}
+	_ = os.MkdirAll(account.DataRoot(), 0700)
+	if err := logger.InitFile(account.LogsDir()); err != nil {
+		fmt.Fprintf(os.Stderr, "[logger] init failed: %v\n", err)
+	}
+	logger.Info("data root: %s", account.DataRoot())
 
 	svc = NewService(basePromptRaw)
 	svc.LoadRuntimeSettings()
@@ -97,6 +129,16 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 func withCORS(next http.Handler) http.Handler {

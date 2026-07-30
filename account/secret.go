@@ -9,7 +9,7 @@ import (
 )
 
 // 文件存储密钥（服务器友好，不依赖 macOS Keychain）
-// 路径: ~/.qoder2api/secrets/<id>.token
+// 路径: <DataRoot>/secrets/<id>.token
 //
 // 兼容从 QCCG Keychain 导出的值：
 // - 明文 JSON: {"device_token":"dt-...","refresh_token":"drt-..."}
@@ -19,11 +19,7 @@ import (
 const keyringPrefix = "go-keyring-base64:"
 
 func secretsDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	d := filepath.Join(home, ".qoder2api", "secrets")
+	d := SecretsDir()
 	return d, os.MkdirAll(d, 0700)
 }
 

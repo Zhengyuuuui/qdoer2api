@@ -11,17 +11,10 @@ import (
 	"time"
 )
 
-const storeDir = ".qoder2api/accounts"
-const settingsFile = ".qoder2api/settings.json"
-
 var mu sync.Mutex
 
 func dir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	d := filepath.Join(home, storeDir)
+	d := accountsDir()
 	return d, os.MkdirAll(d, 0700)
 }
 
@@ -183,11 +176,7 @@ func SanitizeID(raw string) string {
 }
 
 func LoadSettings() (*Settings, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	path := filepath.Join(home, settingsFile)
+	path := settingsPath()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		// 返回默认设置
@@ -205,17 +194,13 @@ func LoadSettings() (*Settings, error) {
 }
 
 func SaveSettings(s *Settings) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	dir := filepath.Dir(filepath.Join(home, settingsFile))
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	path := settingsPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(home, settingsFile), data, 0600)
+	return os.WriteFile(path, data, 0600)
 }

@@ -1,0 +1,16 @@
+[Unit]
+Description=qoder2api Global (console 3589, bridge 8964)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/qoder2api
+Environment=QODER2API_CONSOLE_PASSWORD=CHANGE_ME_GLOBAL
+Environment=HOME=/root
+ExecStart=/opt/qoder2api/qoder2api --instance=global --bind=0.0.0.0
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
