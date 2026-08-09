@@ -280,6 +280,10 @@ func FetchQuota(token string, region Region) (*QuotaInfo, error) {
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
+	
+	fmt.Printf("[QUOTA DEBUG] API URL: %s\n", ep.QuotaEndpoint)
+	fmt.Printf("[QUOTA DEBUG] Raw response: %s\n", string(raw))
+	
 	var result map[string]interface{}
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
@@ -293,10 +297,16 @@ func FetchQuota(token string, region Region) (*QuotaInfo, error) {
 
 	if uq := extractBucket(result, "userQuota"); uq != nil {
 		info.UserQuota = uq
+		fmt.Printf("[QUOTA DEBUG] userQuota found: %+v\n", uq)
+	} else {
+		fmt.Printf("[QUOTA DEBUG] userQuota NOT found in response\n")
 	}
 
-	if org := extractBucket(result, "orgResourcePackage"); org != nil {
-		info.OrgResourcePackage = org
+	if aq := extractBucket(result, "addOnQuota"); aq != nil {
+		info.AddonQuota = aq
+		fmt.Printf("[QUOTA DEBUG] addonQuota found: %+v\n", aq)
+	} else {
+		fmt.Printf("[QUOTA DEBUG] addonQuota NOT found in response\n")
 	}
 
 	return info, nil
@@ -309,18 +319,9 @@ func extractBucket(data map[string]interface{}, key string) *QuotaBucket {
 	}
 	used := toFloat(obj, "used")
 	total := toFloat(obj, "total")
-	if total == 0 {
-		total = toFloat(obj, "cap") // orgResourcePackage 用 cap 而非 total
-	}
 	remaining := toFloat(obj, "remaining")
 	if total == 0 && used == 0 && remaining == 0 {
 		return nil
-	}
-	// orgResourcePackage 需要 available==true
-	if avail, ok := obj["available"]; ok {
-		if b, _ := avail.(bool); !b {
-			return nil
-		}
 	}
 	resetTime := ""
 	if v, ok := obj["resetTime"].(string); ok {

@@ -126,16 +126,30 @@
       font-size: 12px;
       line-height: 1.5;
       color: var(--muted);
-      min-width: 160px;
+      width: 100%;
+      max-width: 300px;
     }
     .quota strong { color: var(--text); font-weight: 600; }
+    .quota-block {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      vertical-align: top;
+      font-size: 11px;
+    }
+    .addon-block {
+      border-left: 2px solid #4caf50;
+      margin-top: 0;
+    }
     .bar {
-      height: 6px;
+      height: 5px;
       background: #eee;
       border-radius: 999px;
       overflow: hidden;
-      margin-top: 4px;
-      width: 140px;
+      margin-top: 3px;
+      width: 120px;
     }
     .bar > i {
       display: block;
@@ -349,34 +363,80 @@
     }
 
     function renderQuota(q) {
-      if (!q) return '<div class="quota muted">加载中...</div>';
-      if (q.error) return `<div class="quota msg err">${q.error}</div>`;
-      const bucket = q.user_quota || q.org_resource_package;
-      if (!bucket) {
-        return `<div class="quota"><strong>${q.plan || '-'}</strong><br/>无额度数据</div>`;
+      console.log('[QUOTA DEBUG] renderQuota called with:', q);
+      
+      if (!q) {
+        console.log('[QUOTA DEBUG] No quota data');
+        return '<div class="quota muted">加载中...</div>';
       }
-      const used = bucket.used || 0;
-      const total = bucket.total || 0;
-      const remaining = bucket.remaining != null ? bucket.remaining : (total - used);
-      const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
-      const cls = pct >= 90 ? 'bad' : (pct >= 70 ? 'warn' : '');
-      return `
-        <div class="quota">
-          <strong>${q.plan || '-'}</strong>
-          ${q.is_quota_exceeded ? ' <span class="pill">超额</span>' : ''}
-          <br/>已用 ${fmtNum(used)} / ${fmtNum(total)} · 剩余 ${fmtNum(remaining)}
-          <div class="bar ${cls}"><i style="width:${pct}%"></i></div>
-          ${bucket.reset_time ? `<div>重置: ${bucket.reset_time}</div>` : ''}
-        </div>
-      `;
+      if (q.error) {
+        console.log('[QUOTA DEBUG] Quota error:', q.error);
+        return `<div class="quota msg err">${q.error}</div>`;
+      }
+      
+      console.log('[QUOTA DEBUG] Plan:', q.plan);
+      console.log('[QUOTA DEBUG] user_quota:', q.user_quota);
+      console.log('[QUOTA DEBUG] addon_quota:', q.addon_quota);
+      
+      let html = '';
+      
+      // 显示套餐内 Credits
+      const userBucket = q.user_quota;
+      if (userBucket) {
+        const u = userBucket.used || 0;
+        const t = userBucket.total || 0;
+        const r = userBucket.remaining != null ? userBucket.remaining : (t - u);
+        const pct = t > 0 ? Math.min(100, Math.round((u / t) * 100)) : 0;
+        const cls = pct >= 90 ? 'bad' : (pct >= 70 ? 'warn' : '');
+        html += `
+          <div class="quota-block">
+            <strong>${q.plan || '-'}</strong><br/>
+            已用 ${fmtNum(u)} / ${fmtNum(t)} · 剩余 ${fmtNum(r)}<br/>
+            <div class="bar ${cls}"><i style="width:${pct}%"></i></div>
+            ${userBucket.reset_time ? `<div>重置：${userBucket.reset_time}</div>` : ''}
+          </div>
+        `;
+      } else {
+        html += `<div class="quota muted">无套餐额度</div>`;
+      }
+      
+      // 显示个人拓展包 - 独立显示
+      const addonBucket = q.addon_quota;
+      if (addonBucket && (addonBucket.total > 0 || addonBucket.remaining > 0)) {
+        console.log('[QUOTA DEBUG] Adding addon block with:', addonBucket);
+        const u = addonBucket.used || 0;
+        const t = addonBucket.total || 0;
+        const r = addonBucket.remaining != null ? addonBucket.remaining : (t - u);
+        const pct = t > 0 ? Math.min(100, Math.round((u / t) * 100)) : 0;
+        const cls = pct >= 90 ? 'bad' : (pct >= 70 ? 'warn' : '');
+        html += `
+          <div class="quota-block addon-block">
+            <strong>个人拓展包</strong>: 
+            已用 ${fmtNum(u)} / ${fmtNum(t)} · 剩余 ${fmtNum(r)}<br/>
+            <div class="bar ${cls}"><i style="width:${pct}%"></i></div>
+          </div>
+        `;
+      } else {
+        console.log('[QUOTA DEBUG] No addon_quota to display');
+      }
+      
+      console.log('[QUOTA DEBUG] Final HTML:', html);
+      return html;
     }
 
+
+
     function renderAccounts(list) {
+      console.log('[ACCOUNTS DEBUG] renderAccounts called with:', list);
+      
       if (!list || !list.length) {
         $('accountBody').innerHTML = '<tr><td colspan="4" class="muted">暂无账号</td></tr>';
         return;
       }
-      $('accountBody').innerHTML = list.map(a => `
+      $('accountBody').innerHTML = list.map(a => {
+        const cachedQuota = quotaCache[a.id];
+        console.log(`[ACCOUNTS DEBUG] Account ${a.id}, cached quota:`, cachedQuota);
+        return `
         <tr data-id="${a.id}">
           <td>
             <div><strong>${a.name || a.id}</strong> ${a.active ? '<span class="pill">active</span>' : ''}</div>
@@ -386,14 +446,14 @@
             <div>${a.plan || '-'}</div>
             <div class="muted">${a.auth_mode || '-'} / ${a.api_mode || '-'} / ${a.region || 'global'}</div>
           </td>
-          <td class="quota-cell" data-quota-id="${a.id}">${renderQuota(quotaCache[a.id])}</td>
+          <td class="quota-cell" data-quota-id="${a.id}">${renderQuota(cachedQuota)}</td>
           <td class="row">
             <button class="secondary" data-act="activate" data-id="${a.id}" ${a.active ? 'disabled' : ''}>激活</button>
             <button class="secondary" data-act="quota" data-id="${a.id}">刷新额度</button>
             <button class="danger" data-act="delete" data-id="${a.id}">删除</button>
           </td>
         </tr>
-      `).join('');
+      `}).join('');
     }
 
     async function loadQuota(id) {

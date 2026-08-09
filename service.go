@@ -281,7 +281,12 @@ func (s *Service) GetAccountQuota(accountID string) (*account.QuotaInfo, error) 
 		}
 		token = oauthToken
 	}
-	return account.FetchQuota(token, acct.Region)
+	quota, err := account.FetchQuota(token, acct.Region)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("[SERVICE DEBUG] Quota result: user_quota=%+v, addon_quota=%+v\n", quota.UserQuota, quota.AddonQuota)
+	return quota, nil
 }
 
 func (s *Service) ListQoderModels() ([]QoderModel, error) {

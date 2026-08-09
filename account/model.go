@@ -42,11 +42,11 @@ type Settings struct {
 }
 
 type QuotaInfo struct {
-	Plan               string       `json:"plan"`
-	UserQuota          *QuotaBucket `json:"user_quota,omitempty"`
-	OrgResourcePackage *QuotaBucket `json:"org_resource_package,omitempty"`
-	IsQuotaExceeded    bool         `json:"is_quota_exceeded"`
-	ExpiresAt          int64        `json:"expires_at,omitempty"`
+	Plan          string       `json:"plan"`
+	UserQuota     *QuotaBucket `json:"user_quota,omitempty"`
+	AddonQuota    *QuotaBucket `json:"addon_quota,omitempty"`
+	IsQuotaExceeded bool        `json:"is_quota_exceeded"`
+	ExpiresAt     int64        `json:"expires_at,omitempty"`
 }
 
 type QuotaBucket struct {
