@@ -188,50 +188,6 @@
     </section>
 
     <section class="card">
-      <h3>NewAPI / 中转站接入</h3>
-      <div class="muted" style="margin-bottom:12px">
-        把下面地址和密钥填到 NewAPI 渠道（OpenAI 兼容）。本地默认只监听 127.0.0.1。
-      </div>
-      <div class="grid-2">
-        <div>
-          <label>OpenAI Base URL（推荐）</label>
-          <div class="row">
-            <input id="openaiBaseUrl" readonly />
-            <button class="secondary" type="button" data-copy="openaiBaseUrl">复制</button>
-          </div>
-        </div>
-        <div>
-          <label>Root Base URL（Claude 等）</label>
-          <div class="row">
-            <input id="rootBaseUrl" readonly />
-            <button class="secondary" type="button" data-copy="rootBaseUrl">复制</button>
-          </div>
-        </div>
-        <div>
-          <label>API Key / 密钥（可修改）</label>
-          <div class="row">
-            <input id="bridgeTokenInput" placeholder="qccg" />
-            <button class="secondary" type="button" data-copy="bridgeTokenInput">复制</button>
-          </div>
-        </div>
-        <div>
-          <label>Bridge 端口（可修改）</label>
-          <input id="bridgePortInput" type="number" min="1" max="65535" placeholder="8963" />
-        </div>
-        <div>
-          <label>控制台登录密码（可修改，留空不改）</label>
-          <input id="consolePasswordInput" type="password" placeholder="不修改请留空" autocomplete="new-password" />
-        </div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <button id="saveConnBtn">保存密钥/端口/密码</button>
-        <button class="secondary" id="copyNewapiBtn">复制 NewAPI 配置 JSON</button>
-        <span class="msg" id="connMsg"></span>
-      </div>
-      <pre id="newapiBox" style="margin-top:12px"></pre>
-    </section>
-
-    <section class="card">
       <h3>添加账号</h3>
       <div class="grid-2">
         <div>
@@ -288,6 +244,62 @@
         <h3>最近日志</h3>
         <pre id="logsBox">加载中...</pre>
       </div>
+    </section>
+
+    <section class="card">
+      <h3>NewAPI / 中转站接入</h3>
+      <div class="muted" style="margin-bottom:12px">
+        把下面地址和密钥填到 NewAPI 渠道（OpenAI 兼容）。本地默认只监听 127.0.0.1。
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>OpenAI Base URL（推荐）</label>
+          <div class="row">
+            <input id="openaiBaseUrl" readonly />
+            <button class="secondary" type="button" data-copy="openaiBaseUrl">复制</button>
+          </div>
+        </div>
+        <div>
+          <label>Root Base URL（Claude 等）</label>
+          <div class="row">
+            <input id="rootBaseUrl" readonly />
+            <button class="secondary" type="button" data-copy="rootBaseUrl">复制</button>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-top:16px">
+        <div>
+          <label>API Key / 密钥（可修改）</label>
+          <div class="row">
+            <input id="bridgeTokenInput" type="password" placeholder="qccg" />
+            <button class="secondary" type="button" data-copy="bridgeTokenInput">复制</button>
+            <button class="secondary" type="button" id="toggleBridgeToken">显示</button>
+          </div>
+        </div>
+        
+        <div style="margin-top:12px">
+          <label>Bridge 端口（可修改）</label>
+          <input id="bridgePortInput" type="number" min="1" max="65535" placeholder="8963" />
+        </div>
+        
+        <div style="margin-top:12px">
+          <label>控制台登录密码（可修改，留空不改）</label>
+          <input id="consolePasswordInput" type="password" placeholder="不修改请留空" autocomplete="new-password" style="width: 200px; margin-bottom: 6px;" />
+          <button class="secondary" type="button" id="toggleConsolePassword">显示</button>
+          <div style="margin-top:8px; font-size: 11px; color: var(--muted);">
+            <input id="oldPassword1" type="password" placeholder="输入旧密码 1/2" style="width: 140px; margin-right: 6px;" />
+            <input id="oldPassword2" type="password" placeholder="输入旧密码 2/2" style="width: 140px; margin-right: 6px;" />
+            <input id="newPassword" type="password" placeholder="新密码（可选）" style="width: 140px;" />
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="saveConnBtn">保存密钥/端口/密码</button>
+        <button class="secondary" id="copyNewapiBtn">复制 NewAPI 配置 JSON</button>
+        <span class="msg" id="connMsg"></span>
+      </div>
+      <pre id="newapiBox" style="margin-top:12px"></pre>
     </section>
   </main>
 
@@ -363,20 +375,14 @@
     }
 
     function renderQuota(q) {
-      console.log('[QUOTA DEBUG] renderQuota called with:', q);
       
       if (!q) {
-        console.log('[QUOTA DEBUG] No quota data');
         return '<div class="quota muted">加载中...</div>';
       }
       if (q.error) {
-        console.log('[QUOTA DEBUG] Quota error:', q.error);
         return `<div class="quota msg err">${q.error}</div>`;
       }
       
-      console.log('[QUOTA DEBUG] Plan:', q.plan);
-      console.log('[QUOTA DEBUG] user_quota:', q.user_quota);
-      console.log('[QUOTA DEBUG] addon_quota:', q.addon_quota);
       
       let html = '';
       
@@ -403,7 +409,6 @@
       // 显示个人拓展包 - 独立显示
       const addonBucket = q.addon_quota;
       if (addonBucket && (addonBucket.total > 0 || addonBucket.remaining > 0)) {
-        console.log('[QUOTA DEBUG] Adding addon block with:', addonBucket);
         const u = addonBucket.used || 0;
         const t = addonBucket.total || 0;
         const r = addonBucket.remaining != null ? addonBucket.remaining : (t - u);
@@ -417,17 +422,14 @@
           </div>
         `;
       } else {
-        console.log('[QUOTA DEBUG] No addon_quota to display');
       }
       
-      console.log('[QUOTA DEBUG] Final HTML:', html);
       return html;
     }
 
 
 
     function renderAccounts(list) {
-      console.log('[ACCOUNTS DEBUG] renderAccounts called with:', list);
       
       if (!list || !list.length) {
         $('accountBody').innerHTML = '<tr><td colspan="4" class="muted">暂无账号</td></tr>';
@@ -435,7 +437,6 @@
       }
       $('accountBody').innerHTML = list.map(a => {
         const cachedQuota = quotaCache[a.id];
-        console.log(`[ACCOUNTS DEBUG] Account ${a.id}, cached quota:`, cachedQuota);
         return `
         <tr data-id="${a.id}">
           <td>
@@ -547,18 +548,58 @@
     $('saveConnBtn').onclick = async () => {
       const port = Number($('bridgePortInput').value || 8963);
       const bridge_token = ($('bridgeTokenInput').value || '').trim() || 'qccg';
-      const console_password = ($('consolePasswordInput').value || '').trim();
+      
+      // 处理密码修改逻辑
+      const oldPassword1 = ($('oldPassword1').value || '').trim();
+      const oldPassword2 = ($('oldPassword2').value || '').trim();
+      const newPassword = ($('newPassword').value || '').trim();
+      const console_password_input = ($('consolePasswordInput').value || '').trim();
+      
+      let passwordData = null;
+      
+      // 如果用户输入了新密码或旧密码，则进行验证
+      if (newPassword || oldPassword1 || oldPassword2) {
+        if (!oldPassword1 || !oldPassword2) {
+          alert('请输入两次旧密码以验证身份');
+          return;
+        }
+        if (oldPassword1 !== oldPassword2) {
+          alert('两次输入的旧密码不一致');
+          return;
+        }
+        
+        // 使用新格式发送密码数据
+        passwordData = {
+          old_password: oldPassword1,
+          new_password: newPassword || null
+        };
+      } else if (console_password_input) {
+        // 如果只输入了控制台密码字段（旧逻辑）
+        passwordData = console_password_input;
+      }
+      
       $('connMsg').className = 'msg';
       $('connMsg').textContent = '保存中...';
       try {
         const body = { port, bridge_token };
-        if (console_password) body.console_password = console_password;
+        if (passwordData !== null) {
+          // 根据类型决定使用哪个字段
+          if (typeof passwordData === 'object') {
+            body.console_password_new = passwordData;
+          } else {
+            body.console_password = passwordData;
+          }
+        }
         const res = await api('/api/settings/save', {
           method: 'POST',
           body: JSON.stringify(body),
         });
         fillConnection(res.connection || {}, res.settings || {});
+        // 清空所有密码输入框
         $('consolePasswordInput').value = '';
+        $('oldPassword1').value = '';
+        $('oldPassword2').value = '';
+        $('newPassword').value = '';
         $('connMsg').className = 'msg ok';
         $('connMsg').textContent = res.note || '已保存';
         await refresh();
@@ -676,6 +717,33 @@
 
     refresh();
     setInterval(refresh, 20000);
+
+    // 显示/隐藏 API Key
+    $('toggleBridgeToken').onclick = () => {
+      const input = $('bridgeTokenInput');
+      if (input.type === 'password') {
+        input.type = 'text';
+        $('toggleBridgeToken').textContent = '隐藏';
+      } else {
+        input.type = 'password';
+        $('toggleBridgeToken').textContent = '显示';
+      }
+    };
+
+    // 显示/隐藏控制台密码
+    $('toggleConsolePassword').onclick = () => {
+      const input = document.getElementById('consolePasswordInput');
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        input.style.color = '#000';
+        $('toggleConsolePassword').textContent = '隐藏';
+      } else {
+        input.type = 'password';
+        input.style.color = '';
+        $('toggleConsolePassword').textContent = '显示';
+      }
+    };
   </script>
 </body>
 </html>

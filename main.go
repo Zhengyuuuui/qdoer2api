@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"flag"
@@ -404,6 +406,11 @@ func handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		LogLevel        *string `json:"log_level"`
 		AutoStart       *bool   `json:"auto_start"`
 		ConsolePassword *string `json:"console_password"`
+		// 新格式：包含旧密码和新密码
+		ConsolePasswordNew *struct {
+			OldPassword string `json:"old_password"`
+			NewPassword *string `json:"new_password"`
+		} `json:"console_password_new"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -434,12 +441,41 @@ func handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if req.AutoStart != nil {
 		cur.AutoStart = *req.AutoStart
 	}
-	if req.ConsolePassword != nil {
+	
+	// 处理新格式的密码修改
+	if req.ConsolePasswordNew != nil {
+		oldPwd := strings.TrimSpace(req.ConsolePasswordNew.OldPassword)
+		newPwd := ""
+		if req.ConsolePasswordNew.NewPassword != nil {
+			newPwd = strings.TrimSpace(*req.ConsolePasswordNew.NewPassword)
+		}
+		
+		// 验证旧密码
+		currentPassword := effectiveConsolePassword()
+		if currentPassword == "" {
+			writeError(w, http.StatusUnauthorized, fmt.Errorf("当前未设置控制台密码"))
+			return
+		}
+		
+		a := sha256.Sum256([]byte(oldPwd))
+		b := sha256.Sum256([]byte(currentPassword))
+		if subtle.ConstantTimeCompare(a[:], b[:]) != 1 {
+			writeError(w, http.StatusUnauthorized, fmt.Errorf("旧密码错误"))
+			return
+		}
+		
+		// 如果提供了新密码，则更新
+		if newPwd != "" {
+			cur.ConsolePassword = newPwd
+		}
+	} else if req.ConsolePassword != nil {
+		// 旧格式：直接设置密码
 		p := strings.TrimSpace(*req.ConsolePassword)
 		if p != "" {
 			cur.ConsolePassword = p
 		}
 	}
+	
 	if err := svc.SaveSettings(cur); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
